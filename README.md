@@ -2,22 +2,22 @@
 Implementation Plan
 Names: Seha Choi and Shengjie Lin
 
-# Q-learning algorithm
-# Executing the Q-learning algorithm
+## Q-learning algorithm
+### Executing the Q-learning algorithm
 We will just use the function we learned in class. For rewards we will put a positive reward for correct block placement at the AR code and a negative reward for the incorrect block placement. While the robot is in transition there will be 0 reward. We will test this by running a couple iterations and checking if they are the correct values.
-# Determining when the Q-matrix has converged
+### Determining when the Q-matrix has converged
 We will say the Q-matrix is converged if the values for each action are within 0.02 difference (the value is subject to change after testing). We will test this via printing out the Q-Matrix values and see if they are consistent.
-# Once the Q-matrix has converged, how to determine which actions the robot should take to maximize expected reward
+### Once the Q-matrix has converged, how to determine which actions the robot should take to maximize expected reward
 We will take a greedy approach and pick the highest reward action. After the matrix has converged the actions should be pretty clear. I.e) Moving the block to the corresponding AR Code. We will verify that this is identical to taking a greedy approach.
 
-Robot perception
-Determining the identities and locations of the three colored objects
-Determining the identities and locations of the three AR tags
-Robot manipulation & movement
-Picking up and putting down the colored objects with the OpenMANIPULATOR arm
-Navigating to the appropriate locations to pick up and put down the colored objects
+## Robot perception
+### Determining the identities and locations of the three colored objects
+### Determining the identities and locations of the three AR tags
+## Robot manipulation & movement
+### Picking up and putting down the colored objects with the OpenMANIPULATOR arm
+### Navigating to the appropriate locations to pick up and put down the colored objects
 
-# TimeLine
+### TimeLine
 Q-Learning Algorithm - By May 1st. We will finish the Q_Learning algorithm part by May 1st and see if the matrix converges to the expected values.
 Robot Perception - By May 4th. Since the Q-Learning Algorithm is separate from the Robot movements we should be able to test independently that the robot is able to execute actions via perception.
 Robot Manipulation & Movement - By May 4th. Similar to above since this is separate from the Q-Learning algorithm we could work in parallel and divide the code up.
