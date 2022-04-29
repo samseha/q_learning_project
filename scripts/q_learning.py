@@ -86,8 +86,7 @@ class QLearning(object):
         self.q_matrix_pub.publish(QMatrix(Header(stamp=rospy.Time.now()), q_matrix))
 
     def save_q_matrix(self):
-        # TODO: You'll want to save your q_matrix to a file once it is done to
-        # avoid retraining
+        # save q_matrix to a file once it is done to avoid retraining
         path = os.path.dirname(__file__) + '/q_matrix.txt'
         np.savetxt(path, self.q_matrix)
 
@@ -122,5 +121,4 @@ class QLearning(object):
 
 
 if __name__ == "__main__":
-    node = QLearning()
-    node.train_q_matrix()
+    QLearning().train_q_matrix()
