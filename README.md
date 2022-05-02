@@ -37,8 +37,8 @@ Final wrap up - By May 8th. We will see if the matrix converges correctly and if
 ### High-level description
 We first use the Q-Learning Algorithm to determine which object belongs to which tag. Then with that knowledge we train the robot to actually execute the movement of dumbells to the corresponding AR tag.
 ### Q-Learning Algorithm
-We first initialize an empty Q matrix and set all values to 0. We then populate invalid state action pairs to a value of -1.
+We first initialize an empty Q matrix and set all values to 0. We then populate invalid state action pairs to a value of -1. In addition, we create a transition matrix which tells us which state an action will lead to. i.e) transtiion matrix[state, action] = new state
 ### Update Q Matrix
-We just follow the Q-learning algorithm and update the corresponding values using the reward that is received after performing a valid action.
+We just follow the Q-learning algorithm and update the corresponding values using the reward that is received after performing a valid action. For selecting action we just uniformly select an action among the valid actions.
 ### Testing Convergenge
 We test to see if the values in the Q-Matrix does not change after a certain amount of movements. A Q value is regarded as unchanged if the difference is less than a threshold of 0.5.
