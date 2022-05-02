@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import csv
 import os
 
 import numpy as np
@@ -87,8 +88,10 @@ class QLearning(object):
 
     def save_q_matrix(self):
         # save q_matrix to a file once it is done to avoid retraining
-        path = os.path.dirname(__file__) + '/q_matrix.txt'
-        np.savetxt(path, self.q_matrix)
+        path = os.path.dirname(__file__) + '/q_matrix.csv'
+        with open(path, 'w') as f:
+            csv.writer(f).writerows(self.q_matrix)
+        # np.savetxt(path, self.q_matrix)
 
     def get_reward(self, data):
         self.reward = data.reward
