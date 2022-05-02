@@ -59,7 +59,7 @@ class QLearning(object):
 
         self.action_pub = rospy.Publisher('/q_learning/robot_action', RobotMoveObjectToTag, queue_size=10)
         self.q_matrix_pub = rospy.Publisher('/q_learning/q_matrix', QMatrix, queue_size=10)
-        rospy.Subscriber('/q_learning/reward', QLearningReward, self.get_reward)
+        rospy.Subscriber('/q_learning/reward', QLearningReward, self.receive_reward)
 
         rospy.sleep(1)
         self.initialize_q_matrix()
@@ -91,9 +91,8 @@ class QLearning(object):
         path = os.path.dirname(__file__) + '/q_matrix.csv'
         with open(path, 'w') as f:
             csv.writer(f).writerows(self.q_matrix)
-        # np.savetxt(path, self.q_matrix)
 
-    def get_reward(self, data):
+    def receive_reward(self, data):
         self.reward = data.reward
 
     def train_q_matrix(self):
