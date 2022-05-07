@@ -69,7 +69,8 @@ class Robot(object):
         self.num_actions = len(self.actions)
 
         self.transition_matrix = np.loadtxt(os.path.dirname(__file__) + "transition_matrix.txt")
-        self.compute_transition_matrix()
+        print(self.q_matrix)
+        print("1line", self.q_matrix[1])
     
     def get_action(self):
         max_score = np.max(self.q_matrix[self.current_state])
@@ -144,6 +145,8 @@ class Robot(object):
     def run(self):
         while not rospy.is_shutdown():
             # print(self.state)
+            object, tag = self.get_action()
+            print(object, tag, self.current_state)
             if self.state == 0:
                 if self.dist is None or self.deg is None:
                     continue
