@@ -16,6 +16,7 @@ import os
 
 path_prefix = os.path.dirname(__file__)  + "/action_states/"
 q_matrix_path = os.path.dirname(__file__)  + "/q_matrix.csv"
+t_matrix_path = os.path.dirname(__file__) + "/transition_matrix.txt"
 
 class Robot(object):
     def __init__(self):
@@ -56,7 +57,7 @@ class Robot(object):
         self.initialized = True
 
         #import q matrix
-        self.q_matrix = np.loadtxt(q_matrix_path)
+        self.q_matrix = np.loadtxt(q_matrix_path, delimiter=',')
         self.current_state = 0
         
         # Fetch actions. These are the only 9 possible actions the system can take.
@@ -68,9 +69,10 @@ class Robot(object):
         self.actions = list(map(lambda x: {"object": colors[int(x[0])], "tag": int(x[1])}, self.actions))
         self.num_actions = len(self.actions)
 
-        self.transition_matrix = np.loadtxt(os.path.dirname(__file__) + "transition_matrix.txt")
-        print(self.q_matrix)
-        print("1line", self.q_matrix[1])
+        self.transition_matrix = np.loadtxt(t_matrix_path)
+
+        self.next_object = None
+        self.next_tag = None
     
     def get_action(self):
         max_score = np.max(self.q_matrix[self.current_state])
@@ -81,7 +83,9 @@ class Robot(object):
         optimal_action = np.random.choice(optimal_actions)
         dic = self.actions[optimal_action]
         self.current_state = self.transition_matrix[self.current_state, optimal_action]
-        return dic["object"], dic["tag"]
+        self.next_object = dic["object"]
+        self.next_tag = dic["tag"]
+        #return dic["object"], dic["tag"]
 
 
     def scan_callback(self, data):
@@ -125,7 +129,12 @@ class Robot(object):
         upper_cyan = np.array([106.5, 139.8, 242.2])
         lower_green = np.array([31.5, 88.6, 75.8])
         upper_green = np.array([44, 152.6, 203.8])
-        mask = cv2.inRange(hsv, lower_pink, upper_pink)
+        if self.next_object == "pink":
+            mask = cv2.inRange(hsv, lower_pink, upper_pink)
+        elif self.next_object == "green":
+            mask = cv2.inRange(hsv, lower_green, upper_green)
+        else:
+            mask = cv2.inRange(hsv, lower_cyan, upper_cyan)
         # mask = cv2.inRange(hsv, lower_cyan, upper_cyan)
         # mask = cv2.inRange(hsv, lower_green, upper_green)
         # self.pub_img.publish(self.bridge.cv2_to_imgmsg(mask, encoding='mono8'))
@@ -145,8 +154,7 @@ class Robot(object):
     def run(self):
         while not rospy.is_shutdown():
             # print(self.state)
-            object, tag = self.get_action()
-            print(object, tag, self.current_state)
+            self.get_action()
             if self.state == 0:
                 if self.dist is None or self.deg is None:
                     continue
