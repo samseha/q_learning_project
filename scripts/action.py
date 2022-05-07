@@ -105,51 +105,64 @@ class Robot(object):
     def img_callback(self, data):
         if not self.initialized:
             return
-        img = self.bridge.imgmsg_to_cv2(data, desired_encoding='bgr8')
-        w = img.shape[1]
-        # aruco_dict = cv2.aruco.Dictionary_get(cv2.aruco.DICT_4X4_50)
-        # gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        if self.state == 0:
+            #finding object
+            img = self.bridge.imgmsg_to_cv2(data, desired_encoding='bgr8')
+            w = img.shape[1]
+            hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+            lower_pink = np.array([154, 101.4, 75.8])
+            upper_pink = np.array([169, 152.6, 229.4])
+            lower_cyan = np.array([91.5, 88.6, 101.4])
+            upper_cyan = np.array([106.5, 139.8, 242.2])
+            lower_green = np.array([31.5, 88.6, 75.8])
+            upper_green = np.array([44, 152.6, 203.8])
+            if self.next_object == "pink":
+                mask = cv2.inRange(hsv, lower_pink, upper_pink)
+            elif self.next_object == "green":
+                mask = cv2.inRange(hsv, lower_green, upper_green)
+            else:
+                mask = cv2.inRange(hsv, lower_cyan, upper_cyan)
+            # mask = cv2.inRange(hsv, lower_cyan, upper_cyan)
+            # mask = cv2.inRange(hsv, lower_green, upper_green)
+            # self.pub_img.publish(self.bridge.cv2_to_imgmsg(mask, encoding='mono8'))
+            M = cv2.moments(mask)
+            if M['m00'] > 0:
+                # center of the yellow pixels in the image
+                cx = int(M['m10'] / M['m00'])
+                cy = int(M['m01'] / M['m00'])
+                self.error = cx - w / 2
+                cv2.circle(img, (cx, cy), 20, (0, 0, 255), -1)
+                self.pub_img.publish(self.bridge.cv2_to_imgmsg(img, encoding='bgr8'))
+                # self.twist.angular.z = e * self.k_deg
+                # self.twist_pub.publish(self.twist)
+            else:
+                self.error = None
+        elif self.state == 3:
+            img = self.bridge.imgmsg_to_cv2(data, desired_encoding='bgr8')
+            w = img.shape[1]
+            #finding AR tag
+            aruco_dict = cv2.aruco.Dictionary_get(cv2.aruco.DICT_4X4_50)
+            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-        # corners, ids, rejected_points = cv2.aruco.detectMarkers(gray, aruco_dict)
-        # if ids is None:
-        #     return
-        # for id, corner_pts in zip(ids, corners):
-        #     corner_pts = corner_pts[0].astype(int)
-        #     print(id)
-        #     cv2.line(img, tuple(corner_pts[0]), tuple(corner_pts[1]), (255, 0, 0), 3)
-        #     cv2.line(img, tuple(corner_pts[1]), tuple(corner_pts[2]), (255, 0, 0), 3)
-        #     cv2.line(img, tuple(corner_pts[2]), tuple(corner_pts[3]), (255, 0, 0), 3)
-        #     cv2.line(img, tuple(corner_pts[3]), tuple(corner_pts[0]), (255, 0, 0), 3)
-        #     self.pub_img.publish(self.bridge.cv2_to_imgmsg(img, encoding='bgr8'))
+            corners, ids, rejected_points = cv2.aruco.detectMarkers(gray, aruco_dict)
+            if ids is None:
+                return
+            for id, corner_pts in zip(ids, corners):
+                corner_pts = corner_pts[0].astype(int)
+                print(id)
+                if id == self.next_tag:
+                    # cv2.line(img, tuple(corner_pts[0]), tuple(corner_pts[1]), (255, 0, 0), 3)
+                    # cv2.line(img, tuple(corner_pts[1]), tuple(corner_pts[2]), (255, 0, 0), 3)
+                    # cv2.line(img, tuple(corner_pts[2]), tuple(corner_pts[3]), (255, 0, 0), 3)
+                    # cv2.line(img, tuple(corner_pts[3]), tuple(corner_pts[0]), (255, 0, 0), 3)
+                    # self.pub_img.publish(self.bridge.cv2_to_imgmsg(img, encoding='bgr8'))
+                    cx = corner_pts[1][0] - corner_pts[0][0]
+                    # need to check if this is correct
+                    self.error = cx - w / 2
+                else:
+                    self.error = None
 
-        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-        lower_pink = np.array([154, 101.4, 75.8])
-        upper_pink = np.array([169, 152.6, 229.4])
-        lower_cyan = np.array([91.5, 88.6, 101.4])
-        upper_cyan = np.array([106.5, 139.8, 242.2])
-        lower_green = np.array([31.5, 88.6, 75.8])
-        upper_green = np.array([44, 152.6, 203.8])
-        if self.next_object == "pink":
-            mask = cv2.inRange(hsv, lower_pink, upper_pink)
-        elif self.next_object == "green":
-            mask = cv2.inRange(hsv, lower_green, upper_green)
-        else:
-            mask = cv2.inRange(hsv, lower_cyan, upper_cyan)
-        # mask = cv2.inRange(hsv, lower_cyan, upper_cyan)
-        # mask = cv2.inRange(hsv, lower_green, upper_green)
-        # self.pub_img.publish(self.bridge.cv2_to_imgmsg(mask, encoding='mono8'))
-        M = cv2.moments(mask)
-        if M['m00'] > 0:
-            # center of the yellow pixels in the image
-            cx = int(M['m10'] / M['m00'])
-            cy = int(M['m01'] / M['m00'])
-            self.error = cx - w / 2
-            cv2.circle(img, (cx, cy), 20, (0, 0, 255), -1)
-            self.pub_img.publish(self.bridge.cv2_to_imgmsg(img, encoding='bgr8'))
-            # self.twist.angular.z = e * self.k_deg
-            # self.twist_pub.publish(self.twist)
-        else:
-            self.error = None
+        
 
     def run(self):
         while not rospy.is_shutdown():
