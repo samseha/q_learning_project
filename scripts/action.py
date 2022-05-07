@@ -46,9 +46,10 @@ class Robot(object):
         # self.k_dist = -0.1
         self.k_deg = -0.003
         # 0: identify colored object and move close to it
-        # 1: move to grabbing position
-        # 2: grab object
-        # 3: move to AR tag
+        # 1: grab object
+        # 2: move to AR tag
+        # 3: Drop Object
+        # 4: Finished
         self.state = 0
         self.deg = None
         self.dist = None
@@ -73,6 +74,8 @@ class Robot(object):
 
         self.next_object = None
         self.next_tag = None
+
+        self.matched_object = 0
     
     def get_action(self):
         max_score = np.max(self.q_matrix[self.current_state])
@@ -137,7 +140,7 @@ class Robot(object):
                 # self.twist_pub.publish(self.twist)
             else:
                 self.error = None
-        elif self.state == 3:
+        elif self.state == 2:
             img = self.bridge.imgmsg_to_cv2(data, desired_encoding='bgr8')
             w = img.shape[1]
             #finding AR tag
@@ -162,13 +165,28 @@ class Robot(object):
                 else:
                     self.error = None
 
-        
+    def reset_to_middle(self):
+        self.twist.angular.z = math.radians(180)
+        self.pub_twist.publish(self.twist)
+        rospy.sleep(1)
+        self.twist.angular.z = 0
+        self.pub_twist.publish(self.twist)
+        self.twist.linear.x = 0.1
+        self.pub_twist.publish(self.twist)
+        rospy.sleep(3)
+        self.twist.linear.x = 0
+        self.pub_twist.publist(self.twist)
 
     def run(self):
         while not rospy.is_shutdown():
             # print(self.state)
             self.get_action()
-            if self.state == 0:
+            # 0: identify colored object and move close to it
+            # 1: grab object
+            # 2: move to AR tag
+            # 3: Drop Object
+            # 4: Finished
+            if self.state == 0 or self.state == 2:
                 if self.dist is None or self.deg is None:
                     continue
                 if self.error is None:
@@ -178,12 +196,20 @@ class Robot(object):
                 else:
                     self.twist.angular.z = self.error * self.k_deg
                     if abs(self.tgt_deg - self.deg) < 30:
-                        if abs(self.tgt_dist - self.dist) < 0.003:
-                            self.twist.linear.x = 0
-                            self.twist.angular.z = 0
-                            self.pub_twist.publish(self.twist)
-                            self.state = 2
-                            continue
+                        if self.state == 0:
+                            if abs(self.tgt_dist - self.dist) < 0.003:
+                                self.twist.linear.x = 0
+                                self.twist.angular.z = 0
+                                self.pub_twist.publish(self.twist)
+                                self.state = 1
+                                continue
+                        if self.state == 2:
+                            if abs(self.tgt_dist + 0.05 - self.dist) < 0.003:
+                                self.twist.linear.x = 0
+                                self.twist.angular.z = 0
+                                self.pub_twist.publish(self.twist)
+                                self.state = 3
+                                continue
                         # print('heading to object using k_dist')
                         self.twist.linear.x = (self.tgt_dist - self.dist) * self.k_dist
                         # print(self.twist.linear.x)
@@ -207,7 +233,8 @@ class Robot(object):
             #     # apply angular gain
             #     self.twist.angular.z = deg_diff * self.k_deg
             #     self.pub_twist.publish(self.twist)
-            elif self.state == 2:
+            elif self.state == 1:
+                #Picking up Object
                 gripper_joint_goal = [0.019, 0.019]
                 self.move_group_gripper.go(gripper_joint_goal, wait=True)
                 self.move_group_gripper.stop()
@@ -237,8 +264,12 @@ class Robot(object):
                 self.move_group_arm.go(arm_joint_goal, wait=True)
                 self.move_group_arm.stop()
                 rospy.sleep(5)
-                self.state = 3
+                # we should a 180 here and move for 3 seconds
+                self.reset_to_middle()
+                self.state = 2
+
             elif self.state == 3:
+                #Dropping off Object
                 arm_joint_goal = [
                     0.0,
                     math.radians(30.0),
@@ -262,8 +293,14 @@ class Robot(object):
                 ]
                 self.move_group_arm.go(arm_joint_goal, wait=True)
                 self.move_group_arm.stop()
-                # rospy.sleep(8)
-                self.state = 4
+                rospy.sleep(3)
+                #reset 180 again
+                self.matched_object += 1
+                if self.matched_object == 3:
+                    self.state = 4
+                    continue
+                self.reset_to_middle()
+                self.state = 0
         # # We can use the following function to move the arm
         # # self.move_group_arm.go(arm_joint_goal, wait=True)
 
