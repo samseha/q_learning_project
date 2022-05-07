@@ -12,7 +12,10 @@ import cv_bridge
 import numpy as np
 
 from utils import process_range_data
+import os
 
+path_prefix = os.path.dirname(__file__)  + "/action_states/"
+q_matrix_path = os.path.dirname(__file__)  + "/q_matrix.csv"
 
 class Robot(object):
     def __init__(self):
@@ -51,6 +54,34 @@ class Robot(object):
         self.bridge = cv_bridge.CvBridge()
         self.error = None
         self.initialized = True
+
+        #import q matrix
+        self.q_matrix = np.loadtxt(q_matrix_path)
+        self.current_state = 0
+        
+        # Fetch actions. These are the only 9 possible actions the system can take.
+        # self.actions is an array of dictionaries where the row index corresponds
+        # to the action number, and the value has the following form:
+        # { object: "pink", tag: 1}
+        colors = ["pink", "green", "blue"]
+        self.actions = np.loadtxt(path_prefix + "actions.txt")
+        self.actions = list(map(lambda x: {"object": colors[int(x[0])], "tag": int(x[1])}, self.actions))
+        self.num_actions = len(self.actions)
+
+        self.transition_matrix = np.loadtxt(os.path.dirname(__file__) + "transition_matrix.txt")
+        self.compute_transition_matrix()
+    
+    def get_action(self):
+        max_score = np.max(self.q_matrix[self.current_state])
+        optimal_actions = []
+        for i in range(len(self.num_actions)):
+            if self.q_matrix[self.current_state, i] == max_score:
+                optimal_actions.append(i)
+        optimal_action = np.random.choice(optimal_actions)
+        dic = self.actions[optimal_action]
+        self.current_state = self.transition_matrix[self.current_state, optimal_action]
+        return dic["object"], dic["tag"]
+
 
     def scan_callback(self, data):
         if not self.initialized:

@@ -64,6 +64,7 @@ class QLearning(object):
         rospy.sleep(1)
         self.initialize_q_matrix()
         self.compute_transition_matrix()
+        self.save_transition_matrix()
 
     def initialize_q_matrix(self):
         for i in range(self.num_states):
@@ -91,6 +92,11 @@ class QLearning(object):
         path = os.path.dirname(__file__) + '/q_matrix.csv'
         with open(path, 'w') as f:
             csv.writer(f).writerows(self.q_matrix)
+
+    def save_transition_matrix(self):
+        # save transition_matrix to a file once it is done to avoid retraining
+        path = os.path.dirname(__file__) + '/transition_matrix.txt'
+        np.savetxt(path, self.transition_matrix)
 
     def receive_reward(self, data):
         self.reward = data.reward
