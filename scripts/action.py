@@ -93,13 +93,13 @@ class Robot(object):
         self.current_state = self.transition_matrix[self.current_state, optimal_action]
         self.next_object = dic["object"]
         self.next_tag = dic["tag"]
+        print(self.next_object, self.next_tag)
 
     def scan_callback(self, data):
         if not self.initialized:
             return
         if self.state not in {0, 2}:
             return
-        # retval = process_range_data(data, lo=-15, hi=16)
         retval = process_range_data(data, lo=self.tgt_ang - 15, hi=self.tgt_ang + 16)
         if retval is not None:
             self.ang, self.dist = retval
@@ -119,13 +119,15 @@ class Robot(object):
             else:
                 mask = cv2.inRange(hsv, self.lower_blue, self.upper_blue)
             # self.pub_img.publish(self.bridge.cv2_to_imgmsg(mask, encoding='mono8'))
+            if np.sum(mask) < 300 * 255:
+                return
             M = cv2.moments(mask)
             if M['m00'] > 0:
                 # center of the colored pixels in the image
                 cx = int(M['m10'] / M['m00'])
                 cy = int(M['m01'] / M['m00'])
                 self.error = (cx - w / 2, rospy.Time.now())
-                cv2.circle(mask, (cx, cy), 10, 255, -1)
+                cv2.circle(mask, (cx, cy), 3, 128, -1)
                 self.pub_img.publish(self.bridge.cv2_to_imgmsg(mask, encoding='mono8'))
         elif self.state == 2:
             # finding AR tag
@@ -139,24 +141,19 @@ class Robot(object):
                     corner_pts = corner_pts[0].astype(int)
                     cx = np.mean(corner_pts[:, 0])
                     self.error = (cx - w / 2, rospy.Time.now())
-                    # cv2.line(img, tuple(corner_pts[0]), tuple(corner_pts[1]), (255, 0, 0), 3)
-                    # cv2.line(img, tuple(corner_pts[1]), tuple(corner_pts[2]), (255, 0, 0), 3)
-                    # cv2.line(img, tuple(corner_pts[2]), tuple(corner_pts[3]), (255, 0, 0), 3)
-                    # cv2.line(img, tuple(corner_pts[3]), tuple(corner_pts[0]), (255, 0, 0), 3)
                     cv2.polylines(img, [corner_pts], True, (255, 0, 0), 3)
                     self.pub_img.publish(self.bridge.cv2_to_imgmsg(img, encoding='bgr8'))
                     break
 
     def reset_to_middle(self):
+        self.twist.linear.x = -0.1
+        self.pub_twist.publish(self.twist)
+        rospy.sleep(5)
+        self.twist.linear.x = 0
         self.twist.angular.z = math.radians(180 / 5)
         self.pub_twist.publish(self.twist)
         rospy.sleep(5)
         self.twist.angular.z = 0
-        self.pub_twist.publish(self.twist)
-        self.twist.linear.x = 0.1
-        self.pub_twist.publish(self.twist)
-        rospy.sleep(5)
-        self.twist.linear.x = 0
         self.pub_twist.publish(self.twist)
 
     def run(self):
@@ -167,15 +164,12 @@ class Robot(object):
         tgt_dist = self.tgt_dist
         self.get_action()
         while not rospy.is_shutdown():
-            print(self.state)
-            # print(self.state)
             # 0: spin, find colored object and move to it
             # 1: grab object
             # 2: spin, find AR tag and move to it
             # 3: Drop Object
             if self.state in {0, 2}:
                 if self.error is None or (rospy.Time.now() - self.error[1]).to_sec() > 0.3:
-                    # print('nothing detected, keep spinning')
                     self.twist.linear.x = 0
                     self.twist.angular.z = 0.3
                 else:
@@ -246,7 +240,7 @@ class Robot(object):
                 ]
                 self.move_group_arm.go(arm_joint_goal, wait=True)
                 self.move_group_arm.stop()
-                # rospy.sleep(8)
+                rospy.sleep(5)
                 # reset
                 self.reset_to_middle()
                 self.matched_object += 1
