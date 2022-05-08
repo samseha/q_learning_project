@@ -42,3 +42,7 @@ We first initialize an empty Q matrix and set all values to 0. We then populate 
 We just follow the Q-learning algorithm and update the corresponding values using the reward that is received after performing a valid action. For selecting action we just uniformly select an action among the valid actions.
 ### Testing Convergenge
 We test to see if the values in the Q-Matrix does not change after a certain amount of movements. A Q value is regarded as unchanged if the difference is less than a threshold of 0.5.
+
+
+https://user-images.githubusercontent.com/57845592/167313776-672f892e-8c52-417a-bb0a-1c7f6ebb56e7.mp4
+
