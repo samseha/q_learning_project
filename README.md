@@ -37,14 +37,27 @@ Final wrap up - By May 8th. We will see if the matrix converges correctly and if
 ### Objectives
 We train a Q-matrix based on the rewards of object placement to the tags and let it converge. With the Q-Matrix we find the optimal actions and execute it on the physical Turtlebot using arm and motor movement.
 ### High-level description
-We first use the Q-Learning Algorithm to determine which object belongs to which tag. Then with that knowledge we train the robot to actually execute the movement of dumbells to the corresponding AR tag.
+We first use the Q-Learning Algorithm to determine which object belongs to which tag. We will save that matrix and in our actions file we will load it. We will use a greedy algorithm to select the most optimal actions and use the sensors of the robot to detect colored objects and the corresponding AR code to place the objec to the desired AR code. For directional control we will use a proportional controller and to pick up and drop objects we will let the arm move into pre-conceived angles.
 ### Q-Learning Algorithm
 We first initialize an empty Q matrix and set all values to 0. We then populate invalid state action pairs to a value of -1. In addition, we create a transition matrix which tells us which state an action will lead to. i.e) transtiion matrix[state, action] = new state
 #### Update Q Matrix
 We just follow the Q-learning algorithm and update the corresponding values using the reward that is received after performing a valid action. For selecting action we just uniformly select an action among the valid actions.
 #### Testing Convergenge
 We test to see if the values in the Q-Matrix does not change after a certain amount of movements. A Q value is regarded as unchanged if the difference is less than a threshold of 0.5.
-
+### Robot Actions
+We use a greedy approach to select the optimal actions from each state. Then with the selected actions we execute it on the robot via camera recognition, LIDAR recognition, AR code recognition, and robot arm movements.
+#### Camera Recognition
+We first use the camera and set a mask for each of the colors. We take the X component from the recognized color and use a proportion controller so that the robot will face towards the bar move towards it. If the robot does not detect any desired object within its reading frame it will just spin in its place until it finds a desired object.
+#### Lidar Recognition
+We take into consideration of the closests object of the robot that is within a -15,15 degree angle. The reasoning behind it is that since the robot will be facing towards the desired object due to the camera recognition, other objects that are close to the robot, not infront of it, must be ignored. We have 2 different target distances for picking up objects and dropping off objects, with the latter being a bit larger. Once the robot reaches our desired target distance, it will move on to the arm movement phase.
+#### Robot Arm Movement
+We measured out specific joint and gripper values using R-Viz. Once the robot is ready to pick up it will execute it by opening the gripper, moving down, close the gripper, then raising the arm so it doesn't block camera and Lidar sensors. We do the opposite steps for laying down an object. In addition, after picking up or dropping down an object we do a movement called "reset to middle". The robot will back out and do a 180 degree turn so that it faces the other side. Although the robot will work without this movement, we did it for convenience.
+## Challenges
+The biggest challenge for us was finding the k value to use for the proportional controller and the lag we experienced with robots. For some reason, some of the turtlebots had major lag and it took multiple seconds for our velocity to push making our robot just spin in circles. At first we thought it was an issue with our code but after changing between three robots (we checked that it worked on Gazebo as it should), the third robot worked perfectly.
+## Future Works
+Right now when we do not detect a desired object, we just spin in one direction and this could take a lot of time since the robot might have to turn 360 degrees. In the future we could maybe remember where certain objects are and make the robot spin in a direction that is closest to the next desired object.
+## Takeaways
+Our biggest take away is that observations can be noisy and we have to make it robust to these noise. For example, we put a time stamp for visual detection so that we would only take in detections that was within a certain timeframe. In addition, we also checked if the pixel detected for the colored objects was significant enough. Since sometimes lighting could affect the detection of the colored objects. We tested on different lighting condition and put safety measures like these to make it more robust to noise.
 
 https://user-images.githubusercontent.com/57845592/167313776-672f892e-8c52-417a-bb0a-1c7f6ebb56e7.mp4
 
