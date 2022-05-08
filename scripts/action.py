@@ -38,7 +38,29 @@ class Robot(object):
         rospy.Subscriber('/camera/rgb/image_raw', Image, self.img_callback)
         self.pub_twist = rospy.Publisher("/cmd_vel", Twist, queue_size=1)
         self.pub_img = rospy.Publisher("/debug", Image, queue_size=1)
+
+        self.bridge = cv_bridge.CvBridge()
         self.twist = Twist(linear=Vector3(), angular=Vector3())
+
+        # load q matrix
+        self.q_matrix = np.loadtxt(q_matrix_path, delimiter=',')
+        # Fetch actions. These are the only 9 possible actions the system can take.
+        # self.actions is an array of dictionaries where the row index corresponds
+        # to the action number, and the value has the following form:
+        # { object: "pink", tag: 1}
+        colors = ["pink", "green", "blue"]
+        self.actions = np.loadtxt(path_prefix + "actions.txt")
+        self.actions = list(map(lambda x: {"object": colors[int(x[0])], "tag": int(x[1])}, self.actions))
+        self.num_actions = len(self.actions)
+        # load state transition matrix
+        self.transition_matrix = np.loadtxt(t_matrix_path).astype(int)
+
+        self.lower_pink = np.array([154, 101.4, 75.8])
+        self.upper_pink = np.array([169, 152.6, 229.4])
+        self.lower_blue = np.array([91.5, 88.6, 101.4])
+        self.upper_blue = np.array([106.5, 139.8, 242.2])
+        self.lower_green = np.array([31.5, 88.6, 75.8])
+        self.upper_green = np.array([44, 152.6, 203.8])
 
         self.tgt_dist = 0.235
         self.tgt_ang = -4
@@ -52,37 +74,17 @@ class Robot(object):
         self.state = 0
         self.ang = None
         self.dist = None
-        self.bridge = cv_bridge.CvBridge()
         self.error = None
-        self.initialized = True
-
-        # import q matrix
-        self.q_matrix = np.loadtxt(q_matrix_path, delimiter=',')
-        self.current_state = 0
-
-        # Fetch actions. These are the only 9 possible actions the system can take.
-        # self.actions is an array of dictionaries where the row index corresponds
-        # to the action number, and the value has the following form:
-        # { object: "pink", tag: 1}
-        colors = ["pink", "green", "blue"]
-        self.actions = np.loadtxt(path_prefix + "actions.txt")
-        self.actions = list(map(lambda x: {"object": colors[int(x[0])], "tag": int(x[1])}, self.actions))
-        self.num_actions = len(self.actions)
-
-        self.transition_matrix = np.loadtxt(t_matrix_path).astype(int)
-
         self.next_object = None
         self.next_tag = None
+        self.current_state = 0
+        self.num_matched_object = 0
 
-        self.matched_object = 0
-        self.lower_pink = np.array([154, 101.4, 75.8])
-        self.upper_pink = np.array([169, 152.6, 229.4])
-        self.lower_blue = np.array([91.5, 88.6, 101.4])
-        self.upper_blue = np.array([106.5, 139.8, 242.2])
-        self.lower_green = np.array([31.5, 88.6, 75.8])
-        self.upper_green = np.array([44, 152.6, 203.8])
+        self.initialized = True
 
     def get_action(self):
+        # choose the optimal action according to the Q matrix
+        # if there are multiple equally optimal ones, choose randomly
         max_score = np.max(self.q_matrix[self.current_state])
         optimal_actions = []
         for i in range(self.num_actions):
@@ -96,6 +98,7 @@ class Robot(object):
         print(self.next_object, self.next_tag)
 
     def scan_callback(self, data):
+        # get the angle and distance of the closest object in front of the turtlebot
         if not self.initialized:
             return
         if self.state not in {0, 2}:
@@ -105,6 +108,7 @@ class Robot(object):
             self.ang, self.dist = retval
 
     def img_callback(self, data):
+        # process camera image to find colored objects and AR tags
         if not self.initialized:
             return
         img = self.bridge.imgmsg_to_cv2(data, desired_encoding='bgr8')
@@ -146,6 +150,7 @@ class Robot(object):
                     break
 
     def reset_to_middle(self):
+        # back off 0.5 meters and turn 180 degrees
         self.twist.linear.x = -0.1
         self.pub_twist.publish(self.twist)
         rospy.sleep(5)
@@ -157,17 +162,18 @@ class Robot(object):
         self.pub_twist.publish(self.twist)
 
     def run(self):
+        # We use a state machine to determine what the robot should do. Below are the 4 possible states.
+        # 0: spin, find colored object and move to it
+        # 1: grab object
+        # 2: spin, find AR tag and move to it
+        # 3: Drop Object
         gripper_joint_goal = [0.019, 0.019]
-        self.move_group_gripper.go(gripper_joint_goal)
+        self.move_group_gripper.go(gripper_joint_goal, wait=True)
         self.move_group_gripper.stop()
 
         tgt_dist = self.tgt_dist
         self.get_action()
         while not rospy.is_shutdown():
-            # 0: spin, find colored object and move to it
-            # 1: grab object
-            # 2: spin, find AR tag and move to it
-            # 3: Drop Object
             if self.state in {0, 2}:
                 if self.error is None or (rospy.Time.now() - self.error[1]).to_sec() > 0.3:
                     self.twist.linear.x = 0
@@ -240,11 +246,11 @@ class Robot(object):
                 ]
                 self.move_group_arm.go(arm_joint_goal, wait=True)
                 self.move_group_arm.stop()
-                rospy.sleep(5)
+                rospy.sleep(4)
                 # reset
                 self.reset_to_middle()
-                self.matched_object += 1
-                if self.matched_object == 3:
+                self.num_matched_object += 1
+                if self.num_matched_object == 3:
                     gripper_joint_goal = [0, 0]
                     self.move_group_gripper.go(gripper_joint_goal, wait=True)
                     self.move_group_gripper.stop()

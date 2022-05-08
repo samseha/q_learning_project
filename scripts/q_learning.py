@@ -67,6 +67,7 @@ class QLearning(object):
         self.save_transition_matrix()
 
     def initialize_q_matrix(self):
+        # initialize Q matrix from the given action matrix
         for i in range(self.num_states):
             valid_actions = np.unique(self.action_matrix[i])
             for j in range(self.num_actions):
@@ -75,6 +76,7 @@ class QLearning(object):
         self.publish_q_matrix()
 
     def compute_transition_matrix(self):
+        # compute state transition matrix from the given action matrix
         for i in range(self.num_states):
             for j in range(self.num_states):
                 a = self.action_matrix[i, j]
@@ -82,6 +84,7 @@ class QLearning(object):
                     self.transition_matrix[i, a] = j
 
     def publish_q_matrix(self):
+        # publish Q matrix
         q_matrix = []
         for row in self.q_matrix:
             q_matrix.append(QMatrixRow(q_matrix_row=list(row.astype(int))))
@@ -99,9 +102,11 @@ class QLearning(object):
         np.savetxt(path, self.transition_matrix)
 
     def receive_reward(self, data):
+        # save reward
         self.reward = data.reward
 
     def train_q_matrix(self):
+        # train Q matrix using a randomly generated trajectory
         counter = 0
         while counter < self.num_steps:
             valid_actions = np.unique(self.action_matrix[self.current_state])[1:]
